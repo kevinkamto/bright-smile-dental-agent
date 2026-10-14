@@ -1,0 +1,36 @@
+name: Feature
+description: Propose a new capability or an improvement
+title: "feat: "
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should be built and why? Link the relevant SPEC.md section.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Files, endpoints, components, or behavior in scope. Call out anything explicitly out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist that defines done.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options: [backend, frontend, agent, ci, docs]
+    validations:
+      required: true
