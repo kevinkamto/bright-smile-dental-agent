@@ -74,16 +74,39 @@ Tests create and drop their own throwaway database (`bright_smile_test_<random>`
 - **Never use em-dashes (U+2014)** anywhere: code, comments, docs, UI copy, bot prompts and replies, commit messages,
   PR and issue text. Use a colon, comma, parentheses, or a separate sentence instead.
 - En-dashes (`–`) are fine only inside numeric ranges copied from the KB (e.g. `$1,100 – $1,500`, `8:00 AM – 5:00 PM`).
-- Check before committing: `git grep -nP '\x{2014}'` must return nothing.
+- The rule covers everything we author. Vendored third-party skills in `.claude/skills/` are excluded and never hand-edited.
+- Check before committing: `git grep -nP '\x{2014}' -- . ':!.claude/skills'` must return nothing.
 
 ## Git & GitHub workflow
 - Flow: **issue → branch `<type>/<issue#>-<slug>` → PR (`Closes #N`, template filled) → `ci-ok` green → squash-merge → delete branch.**
-- Never commit directly to `main` (protected). Never force-push shared branches.
+- Assign every issue and PR to `@kevinkamto` (`gh issue create --assignee kevinkamto`, `gh pr create --assignee kevinkamto`).
+  Add type/area labels and the `v1.0 MVP` milestone.
+- Never commit directly to `main`. Never force-push shared branches.
 - Conventional Commits (`feat(backend): …`, `fix(frontend): …`, `test: …`, `docs: …`, `chore(ci): …`). Small, focused commits.
-  Gates must pass locally before committing (pre-commit hooks).
+  Reference the issue (`Refs #N`) and end with the `Co-Authored-By` trailer. Gates must pass locally before committing (pre-commit hooks).
+- The repo allows squash merges only (PR title becomes the commit). GitHub deletes the remote branch on merge. Afterwards,
+  clean up locally: `git switch main && git pull --ff-only && git fetch --prune && git branch -d <branch>`.
 - Never commit `.env`, secrets, or `context/conversation.md`.
 - Ask the user before outward-facing actions: creating repos, pushing, changing branch protection, deploying.
 
 ## Docs & references
 - Look up current library docs with Context7 (FastAPI, Beanie, PyMongo, LangGraph, langchain-anthropic, Next.js, shadcn).
 - Use the `claude-api` skill before writing or changing Anthropic/Claude integration code.
+
+## Project skills (`.claude/skills/`)
+Vendored with `npx skills add <owner/repo> -s <skill> -a claude-code --copy -y` and pinned in `skills-lock.json`.
+If a skill's advice conflicts with this file or SPEC.md, **this file and SPEC.md win**.
+
+| Area | Skills | Use when |
+|---|---|---|
+| Workflow | `caveman-commit`, `find-skills`, `webapp-testing` | writing commit messages; looking for a skill; Playwright checks of the running app |
+| Python | `python-code-style`, `python-type-safety`, `python-project-structure`, `python-design-patterns` | backend code, typing, module layout, refactors |
+| Frontend | `shadcn`, `tailwindcss`, `frontend-design`, `vercel-react-best-practices`, `vercel-composition-patterns` | UI components, styling, visual design, React/Next.js performance and component APIs |
+| Assets/SEO | `favicon-gen`, `open-graph` | favicon set and social preview metadata for the landing page |
+
+Overrides:
+- `caveman-commit`: keep subjects terse, but always add `Refs #N`/`Closes #N` and the `Co-Authored-By` trailer.
+- `find-skills`: never install globally (`-g`) or without asking. Propose the skill, then install project-level with `--copy`
+  on a branch and review its files before committing.
+- Next.js guidance comes from the docs bundled with Next.js and the agent rules `next dev` generates (the old
+  `next-best-practices` skill was retired upstream).

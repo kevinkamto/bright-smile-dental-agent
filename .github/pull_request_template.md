@@ -17,4 +17,4 @@ Closes #
 - [ ] Lint, format, type checks, and tests pass locally
 - [ ] `SPEC.md` updated if behavior, API, or data model changed
 - [ ] No secrets, `.env`, or `context/conversation.md` committed
-- [ ] No em-dashes (`git grep -nP '\x{2014}'` is empty)
+- [ ] No em-dashes (`git grep -nP '\x{2014}' -- . ':!.claude/skills'` is empty)
