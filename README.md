@@ -1,4 +1,4 @@
-# Bright Smile Dental — AI Front Desk
+# Bright Smile Dental AI Front Desk
 
 A knowledge-base-grounded patient chat assistant that answers questions and captures appointment requests 24/7,
 plus a staff dashboard that prioritizes callbacks with a one-business-day SLA.

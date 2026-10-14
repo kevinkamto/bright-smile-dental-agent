@@ -1,8 +1,8 @@
-# Bright Smile Dental — AI Front Desk · Specification
+# Bright Smile Dental AI Front Desk: Specification
 
 | | |
 |---|---|
-| **Status** | v1.0 — MVP (in progress) |
+| **Status** | v1.0 MVP (in progress) |
 | **Last updated** | 2026-10-14 |
 | **Source of truth for facts** | [`context/Bright_Smile_Dental_Knowledge_Base.pdf`](context/Bright_Smile_Dental_Knowledge_Base.pdf) |
 
@@ -101,7 +101,7 @@ These rules are implemented in the system prompt and the deterministic guard. Th
 - If the KB doesn't answer the question: *"I don't have that information. Please call us at (301) 555-0148."*
 - Never make up staff names, dentist names, appointment availability, or discounts.
 
-### 4.2 Known KB conflict — Saturday hours
+### 4.2 Known KB conflict: Saturday hours
 The KB contradicts itself. *About* says Saturday **8:00 AM – 1:00 PM**, and the hours table says **9:00 AM – 2:00 PM**.
 - The bot says the **Bethesda office is open Saturday mornings** and asks the patient to call (301) 555-0148 to confirm exact Saturday hours. It **never states either time range as fact**.
 - Rockville is closed on weekends. This isn't in conflict.
@@ -247,14 +247,14 @@ Base path `/api`. JSON uses `snake_case`. The frontend calls it **same-origin** 
 ### 7.1 Endpoints
 | Method & path | Auth | Purpose |
 |---|---|---|
-| `GET /api/health` | — | liveness + DB ping → `{status: "ok", db: "ok"}` |
-| `POST /api/chat` | — (rate-limited) | send a message, receive an SSE stream (§7.2) |
-| `POST /api/leads` | — (rate-limited) | form-fallback lead creation → `201 {id}` |
+| `GET /api/health` | public | liveness + DB ping → `{status: "ok", db: "ok"}` |
+| `POST /api/chat` | public (rate-limited) | send a message, receive an SSE stream (§7.2) |
+| `POST /api/leads` | public (rate-limited) | form-fallback lead creation → `201 {id}` |
 | `GET /api/leads` | staff | `?status&priority&location&page=1&page_size=25&sort=-created_at` → `Page[LeadOut]` |
 | `GET /api/leads/{id}` | staff | `LeadDetail` (lead + transcript + flags) |
 | `PATCH /api/leads/{id}` | staff | `{status?, notes?}` → `LeadOut` |
 | `GET /api/stats` | staff | `{new_today, overdue, open_high_value, after_hours_share}` |
-| `POST /api/auth/login` | — (rate-limited) | `{password}` → `204` + session cookie |
+| `POST /api/auth/login` | public (rate-limited) | `{password}` → `204` + session cookie |
 | `POST /api/auth/logout` | staff | `204`, clears cookie |
 | `GET /api/auth/me` | staff | `204` if the session is valid, otherwise `401` |
 
@@ -437,12 +437,12 @@ cached `get_settings()` and injected as a FastAPI dependency, which tests overri
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | ✅ | — | Claude API key |
+| `ANTHROPIC_API_KEY` | ✅ | none | Claude API key |
 | `ANTHROPIC_MODEL` | | `claude-sonnet-5-5` | chat model |
-| `MONGODB_URI` | ✅ | — | MongoDB connection string (local: `mongodb://localhost:27017`) |
+| `MONGODB_URI` | ✅ | none | MongoDB connection string (local: `mongodb://localhost:27017`) |
 | `MONGODB_DB` | | `bright_smile` | database name |
-| `SESSION_SECRET` | ✅ | — | ≥ 32 random bytes, used to sign the session cookie |
-| `STAFF_PASSWORD_HASH` | ✅ | — | Argon2 hash. Generate with `uv run python -m bright_smile.cli hash-password`. |
+| `SESSION_SECRET` | ✅ | none | ≥ 32 random bytes, used to sign the session cookie |
+| `STAFF_PASSWORD_HASH` | ✅ | none | Argon2 hash. Generate with `uv run python -m bright_smile.cli hash-password`. |
 | `ENVIRONMENT` | | `development` | `development` \| `production` (controls `Secure` cookies and docs exposure) |
 | `LOG_LEVEL` | | `INFO` | |
 | `TRUST_PROXY_HEADERS` | | `false` | trust `X-Forwarded-For` for client IP |

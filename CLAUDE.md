@@ -3,7 +3,7 @@
 Working guide for AI agents and contributors in this repository.
 
 ## Project
-**Bright Smile Dental — AI Front Desk**: a KB-grounded patient chat assistant that captures appointment requests,
+**Bright Smile Dental AI Front Desk**: a KB-grounded patient chat assistant that captures appointment requests,
 plus a staff dashboard that prioritizes callbacks. **[`SPEC.md`](SPEC.md) is the source of truth** for behavior,
 data model, API contract, and quality bar. If you change behavior, update SPEC.md in the same PR.
 
@@ -69,6 +69,12 @@ Tests create and drop their own throwaway database (`bright_smile_test_<random>`
 - **Saturday hours conflict** (8–1 vs 9–2): never state either range as fact. Advise calling (SPEC §4.2).
 - No medical, dental, or medication advice. Emergencies follow SPEC §4.4.
 - Only the Invisalign consult is free. The implant consult is "consultation required", not free.
+
+## Writing style
+- **Never use em-dashes (U+2014)** anywhere: code, comments, docs, UI copy, bot prompts and replies, commit messages,
+  PR and issue text. Use a colon, comma, parentheses, or a separate sentence instead.
+- En-dashes (`–`) are fine only inside numeric ranges copied from the KB (e.g. `$1,100 – $1,500`, `8:00 AM – 5:00 PM`).
+- Check before committing: `git grep -nP '\x{2014}'` must return nothing.
 
 ## Git & GitHub workflow
 - Flow: **issue → branch `<type>/<issue#>-<slug>` → PR (`Closes #N`, template filled) → `ci-ok` green → squash-merge → delete branch.**
