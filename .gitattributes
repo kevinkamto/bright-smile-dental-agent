@@ -1,2 +1,8 @@
 * text=auto eol=lf
 *.pdf binary
+*.png binary
+*.ico binary
+
+# Third-party Claude Code skills (see CLAUDE.md "Project skills")
+.claude/skills/** linguist-vendored
+skills-lock.json linguist-generated
