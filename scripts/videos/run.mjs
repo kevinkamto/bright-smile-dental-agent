@@ -20,7 +20,6 @@
 //   node run.mjs --only=1,4      a subset (Video 4 expects Video 3 first)
 
 import { chromium } from "playwright";
-import { spawn } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +29,7 @@ import { playBeats, TakeFailed } from "./lib/beats.mjs";
 import { calibrate, pause, useInput } from "./lib/human.mjs";
 import { OsInput } from "./lib/os-input.mjs";
 import { installOverlay, setCaption } from "./lib/overlay.mjs";
+import { ScreenRecorder } from "./lib/screen-recorder.mjs";
 
 import video1 from "./scenarios/video1.mjs";
 import video2 from "./scenarios/video2.mjs";
@@ -38,13 +38,6 @@ import video4 from "./scenarios/video4.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = path.resolve(HERE, "../../reports/videos");
-
-// gdigrab grabs the whole desktop at whatever size it is; the result is scaled
-// to fit 1920x1080 and padded, so a 16:10 screen is never stretched.
-const OUTPUT = { width: 1920, height: 1080 };
-const SCALE_TO_OUTPUT =
-  `scale=${OUTPUT.width}:${OUTPUT.height}:force_original_aspect_ratio=decrease,` +
-  `pad=${OUTPUT.width}:${OUTPUT.height}:(ow-iw)/2:(oh-ih)/2:color=black`;
 
 const VIDEOS = [
   { number: 1, slug: "answers-from-the-knowledge-base", beats: video1 },
@@ -63,40 +56,6 @@ const STAFF_PASSWORD = process.env.RECORDING_STAFF_PASSWORD;
 if (!STAFF_PASSWORD) {
   console.error("Set RECORDING_STAFF_PASSWORD to the password the backend's STAFF_PASSWORD_HASH was made from.");
   process.exit(1);
-}
-
-/** One ffmpeg screen capture, started and stopped around a single video. */
-class ScreenRecorder {
-  constructor(outputPath) {
-    this.outputPath = outputPath;
-    this.proc = null;
-    this.stderr = "";
-  }
-
-  async start() {
-    this.proc = spawn(
-      "ffmpeg",
-      ["-y", "-f", "gdigrab", "-framerate", "30", "-draw_mouse", "1", "-i", "desktop", "-vf", SCALE_TO_OUTPUT,
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", this.outputPath],
-      { stdio: ["pipe", "ignore", "pipe"] },
-    );
-    this.proc.stderr.setEncoding("utf-8");
-    this.proc.stderr.on("data", (chunk) => {
-      this.stderr = (this.stderr + chunk).slice(-4000);
-    });
-    this.exited = new Promise((resolve) => this.proc.on("exit", resolve));
-    // Let the encoder settle so the first beat is not clipped.
-    await pause(1200);
-  }
-
-  async stop() {
-    if (!this.proc) return;
-    // 'q' finalizes the MP4. Killing ffmpeg instead leaves a file with no moov box.
-    this.proc.stdin.write("q");
-    const code = await this.exited;
-    this.proc = null;
-    if (code !== 0) throw new Error(`ffmpeg exited with code ${code}:\n${this.stderr.slice(-1500)}`);
-  }
 }
 
 /** Off camera: a signed-out browser with no chat in progress. */
