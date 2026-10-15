@@ -86,6 +86,21 @@ record 3 and 4 together.
   run sends one form request. Video 3 checks the form was accepted, so a run
   over the limit stops instead of filming "Too many requests".
 
+## The presentation walkthrough
+
+`presentation.mjs` records the project presentation: the report walked through
+in a maximized VS Code window, opening the files it describes by clicking down
+the explorer tree, with subtitles as the only thing added to the screen. VS Code
+runs as a separate instance with a throwaway profile (`lib/vscode.mjs`), so your
+own editor is never on camera. It needs no backend, database or API key.
+
+```bash
+node presentation.mjs            # dry run
+node presentation.mjs --record   # writes reports/videos/presentation-project-walkthrough.mp4
+```
+
+The beats are in `scenarios/presentation.mjs`.
+
 ## Checks
 
 The assistant is a real model, so its wording changes from take to take. Every
