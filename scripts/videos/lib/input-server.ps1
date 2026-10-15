@@ -14,7 +14,10 @@
 #   WHEEL <delta>     mouse wheel; positive scrolls down, 120 per notch
 #   TYPE <base64>     type UTF-8 text (base64 to survive the line protocol)
 #   KEY <ENTER|ESC|TAB|BACKSPACE>
+#   CHORD <keys>      a key with modifiers, e.g. CTRL+SHIFT+V, CTRL+G, SHIFT+DOWN
 #   FOCUS             bring the browser this harness launched to the foreground
+#   FOCUSTITLE <b64>  bring the window whose title contains this text to the foreground
+#   MAXTITLE <b64>    maximize the window whose title contains this text
 #   PING
 
 $ErrorActionPreference = "Stop"
@@ -61,17 +64,34 @@ public class OsInput {
         }
     }
 
-    public static IntPtr FindLaunchedBrowser() {
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder buf, int n);
+
+    static IntPtr FindWindow(Func<IntPtr, bool> matches) {
         IntPtr ours = IntPtr.Zero;
         EnumWindows(delegate(IntPtr h, IntPtr l) {
             if (!IsWindowVisible(h) || GetWindowTextLength(h) == 0) return true;
             var cls = new System.Text.StringBuilder(256);
             GetClassName(h, cls, 256);
-            if (cls.ToString() != BROWSER_CLASS || !IsLaunchedBrowser(h)) return true;
+            if (cls.ToString() != BROWSER_CLASS || !matches(h)) return true;
             ours = h;
             return false;
         }, IntPtr.Zero);
         return ours;
+    }
+
+    public static IntPtr FindLaunchedBrowser() {
+        return FindWindow(IsLaunchedBrowser);
+    }
+
+    // The presentation's VS Code window is told apart from the user's own by
+    // a marker its window.title setting always carries.
+    public static IntPtr FindWindowByTitle(string marker) {
+        return FindWindow(delegate(IntPtr h) {
+            var title = new System.Text.StringBuilder(512);
+            GetWindowText(h, title, 512);
+            return title.ToString().IndexOf(marker, StringComparison.Ordinal) >= 0;
+        });
     }
 
     // Windows only lets the current foreground process hand focus away.
@@ -79,7 +99,10 @@ public class OsInput {
     // across that boundary; SwitchToThisWindow (what Alt-Tab uses) covers the
     // case where the handoff is still refused.
     public static bool FocusBrowser() {
-        IntPtr h = FindLaunchedBrowser();
+        return FocusWindow(FindLaunchedBrowser());
+    }
+
+    public static bool FocusWindow(IntPtr h) {
         if (h == IntPtr.Zero) return false;
         if (GetForegroundWindow() == h) return true;
         IntPtr fg = GetForegroundWindow();
@@ -155,6 +178,33 @@ public class OsInput {
         i[1].u.ki.dwFlags = KEYEVENTF_KEYUP;
         Send(i);
     }
+
+    const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+
+    // Arrows, Home, End, Page Up/Down, Insert and Delete share scan codes with
+    // the numeric keypad; without the extended flag Shift+Down can arrive as
+    // keypad 2 and select nothing.
+    static bool IsExtended(ushort vk) {
+        return (vk >= 0x21 && vk <= 0x28) || vk == 0x2D || vk == 0x2E;
+    }
+
+    static INPUT KeyEvent(ushort vk, bool up) {
+        INPUT i = new INPUT();
+        i.type = INPUT_KEYBOARD;
+        i.u.ki.wVk = vk;
+        i.u.ki.dwFlags = (up ? KEYEVENTF_KEYUP : 0) | (IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0);
+        return i;
+    }
+
+    // Modifiers down in order, the key down and up, modifiers up in reverse.
+    public static void Chord(ushort[] modifiers, ushort vk) {
+        var events = new System.Collections.Generic.List<INPUT>();
+        foreach (var m in modifiers) events.Add(KeyEvent(m, false));
+        events.Add(KeyEvent(vk, false));
+        events.Add(KeyEvent(vk, true));
+        for (int n = modifiers.Length - 1; n >= 0; n--) events.Add(KeyEvent(modifiers[n], true));
+        Send(events.ToArray());
+    }
 }
 "@
 
@@ -163,6 +213,22 @@ public class OsInput {
 [void][OsInput]::SystemParametersInfo(0x2001, 0, 0, 0)
 
 $VK = @{ "ENTER" = 0x0D; "ESC" = 0x1B; "TAB" = 0x09; "BACKSPACE" = 0x08 }
+
+# Keys a CHORD can name. Letters and digits are their own virtual-key codes.
+$CHORD_VK = @{
+    "ENTER" = 0x0D; "ESC" = 0x1B; "TAB" = 0x09; "BACKSPACE" = 0x08; "SPACE" = 0x20; "DELETE" = 0x2E
+    "PGUP" = 0x21; "PGDN" = 0x22; "END" = 0x23; "HOME" = 0x24
+    "LEFT" = 0x25; "UP" = 0x26; "RIGHT" = 0x27; "DOWN" = 0x28
+    "COMMA" = 0xBC; "PERIOD" = 0xBE; "SLASH" = 0xBF; "BACKSLASH" = 0xDC; "BACKTICK" = 0xC0
+}
+$MODIFIER_VK = @{ "CTRL" = 0x11; "SHIFT" = 0x10; "ALT" = 0x12 }
+
+function Get-ChordVk([string]$name) {
+    if ($CHORD_VK.ContainsKey($name)) { return [uint16]$CHORD_VK[$name] }
+    if ($name -match '^[A-Z0-9]$') { return [uint16][char]$name }
+    if ($name -match '^F([1-9]|1[0-2])$') { return [uint16](0x6F + [int]$Matches[1]) }
+    throw "Unknown key: $name"
+}
 
 # The gap before the next keystroke: a bell curve around a typical speed, a
 # longer gap at word and sentence boundaries, and an occasional hesitation.
@@ -209,6 +275,32 @@ while ($true) {
                 $name = $parts[1].Trim().ToUpper()
                 if (-not $VK.ContainsKey($name)) { throw "Unknown key: $name" }
                 [OsInput]::KeyVk([uint16]$VK[$name])
+            }
+            "CHORD" {
+                $names = $parts[1].Trim().ToUpper().Split("+")
+                $modifiers = @()
+                for ($n = 0; $n -lt $names.Length - 1; $n++) {
+                    if (-not $MODIFIER_VK.ContainsKey($names[$n])) { throw "Unknown modifier: $($names[$n])" }
+                    $modifiers += [uint16]$MODIFIER_VK[$names[$n]]
+                }
+                [OsInput]::Chord([uint16[]]$modifiers, (Get-ChordVk $names[-1]))
+            }
+            "FOCUSTITLE" {
+                $marker = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($parts[1]))
+                $focused = $false
+                for ($attempt = 1; $attempt -le 5 -and -not $focused; $attempt++) {
+                    $focused = [OsInput]::FocusWindow([OsInput]::FindWindowByTitle($marker))
+                    if (-not $focused -and $attempt -lt 5) { Start-Sleep -Milliseconds 300 }
+                }
+                if (-not $focused) { throw "Could not bring the window titled '*$marker*' to the foreground" }
+                Start-Sleep -Milliseconds 250
+            }
+            "MAXTITLE" {
+                $marker = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($parts[1]))
+                $h = [OsInput]::FindWindowByTitle($marker)
+                if ($h -eq [IntPtr]::Zero) { throw "No window titled '*$marker*'" }
+                [void][OsInput]::ShowWindow($h, 3)  # SW_MAXIMIZE
+                Start-Sleep -Milliseconds 400
             }
             "FOCUS" {
                 # The handoff can lose a race with whatever just changed the

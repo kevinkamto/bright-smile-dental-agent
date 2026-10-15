@@ -85,6 +85,21 @@ export class OsInput {
     return this.send(`KEY ${name}`);
   }
 
+  /** A key with modifiers, written as it reads: "CTRL+SHIFT+V", "SHIFT+DOWN". */
+  chord(keys) {
+    return this.send(`CHORD ${keys}`);
+  }
+
+  /** Maximize the window whose title contains `marker`. */
+  maximizeTitle(marker) {
+    return this.send(`MAXTITLE ${Buffer.from(marker, "utf-8").toString("base64")}`);
+  }
+
+  /** Bring the window whose title contains `marker` to the foreground. */
+  focusTitle(marker) {
+    return this.send(`FOCUSTITLE ${Buffer.from(marker, "utf-8").toString("base64")}`);
+  }
+
   async stop() {
     if (!this.proc) return;
     this.proc.stdin.end();
