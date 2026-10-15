@@ -114,3 +114,18 @@ export async function setCaption(page, text, { title = false } = {}) {
   await ensure(page);
   await page.evaluate(([text, title]) => window.__rec_setCaption__(text, title), [text, title]).catch(() => {});
 }
+
+/** Draw the overlay into a page that is already open and never navigates (the
+ * VS Code workbench), restyled by `css` for that window's layout. */
+export async function installOverlayIn(page, css = "") {
+  await ensure(page);
+  await page.evaluate((css) => {
+    let style = document.getElementById("__rec_style_extra__");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "__rec_style_extra__";
+      document.documentElement.appendChild(style);
+    }
+    style.textContent = css;
+  }, css);
+}
